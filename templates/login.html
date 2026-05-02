@@ -1,21 +1,159 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login</title>
-</head>
-<body style="text-align:center; font-family:Arial;">
+from flask import Flask, render_template, request, redirect, session
+import sqlite3
+import os
 
-    <h1>Login</h1>
+app = Flask(__name__)
+app.secret_key = "secret123"
 
-    <form method="POST">
-        <input type="text" name="username" placeholder="Username"><br><br>
-        <input type="password" name="password" placeholder="Password"><br><br>
+UPLOAD_FOLDER = "uploads"
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-        <button type="submit">Login</button>
-    </form>
+# ---------------- DATABASE ----------------
+def init_db():
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
 
-    <br>
-    <a href="/register">Register</a>
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
+        password TEXT
+    )
+    """)
 
-</body>
-</html>
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS students (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        age TEXT,
+        course TEXT,
+        photo TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ---------------- REGISTER ----------------
+@app.route("/", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = sqlite3.connect("students.db")
+        cursor = conn.cursor()
+
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        conn.commit()
+        conn.close()
+
+        return redirect("/login")
+
+    return render_template("register.html")
+
+
+# ---------------- LOGIN ----------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = sqlite3.connect("students.db")
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        user = cursor.fetchone()
+
+        if user:
+            session["user"] = username
+            return redirect("/dashboard")
+
+    return render_template("login.html")
+
+
+# ---------------- DASHBOARD ----------------
+@app.route("/dashboard", methods=["GET", "POST"])
+def dashboard():
+    if "user" not in session:
+        return redirect("/login")
+
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        name = request.form["name"]
+        age = request.form["age"]
+        course = request.form["course"]
+        photo = request.files["photo"]
+
+        filename = photo.filename
+        photo.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        cursor.execute("INSERT INTO students (name, age, course, photo) VALUES (?, ?, ?, ?)",
+                       (name, age, course, filename))
+        conn.commit()
+
+    search = request.args.get("search")
+
+    if search:
+        cursor.execute("SELECT * FROM students WHERE name LIKE ?", ('%' + search + '%',))
+    else:
+        cursor.execute("SELECT * FROM students")
+
+    students = cursor.fetchall()
+    conn.close()
+
+    return render_template("dashboard.html", students=students)
+
+
+# ---------------- EDIT ----------------
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit(id):
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        name = request.form["name"]
+        age = request.form["age"]
+        course = request.form["course"]
+
+        cursor.execute("UPDATE students SET name=?, age=?, course=? WHERE id=?",
+                       (name, age, course, id))
+        conn.commit()
+        conn.close()
+        return redirect("/dashboard")
+
+    cursor.execute("SELECT * FROM students WHERE id=?", (id,))
+    student = cursor.fetchone()
+    conn.close()
+
+    return render_template("edit.html", student=student)
+
+
+# ---------------- DELETE ----------------
+@app.route("/delete/<int:id>")
+def delete(id):
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM students WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/dashboard")
+
+
+# ---------------- LOGOUT ----------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
+# ---------------- RUN (IMPORTANT FOR RENDER) ----------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
