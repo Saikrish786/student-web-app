@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Manager</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(135deg, #1f4037, #99f2c8);
+            margin: 0;
+            color: white;
+        }
+
+        .container {
+            width: 70%;
+            margin: auto;
+            text-align: center;
+            padding-top: 30px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .add { background: #00c853; color: white; }
+        .delete { background: #d50000; color: white; }
+        .edit { background: #2962ff; color: white; }
+        .logout { background: #616161; color: white; }
+
+        .card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+        }
+
+        th {
+            background: rgba(0,0,0,0.4);
+        }
+
+        tr {
+            background: rgba(255,255,255,0.1);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(255,255,255,0.2);
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Student Manager 🚀</h1>
+    <p>Welcome {{ session['user'] }}</p>
+
+    <!-- ADD -->
+    <div class="card">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="text" name="name" placeholder="Student Name" required>
+            <input type="text" name="roll" placeholder="Roll Number" required>
+            <input type="file" name="photo">
+            <button class="add">Add Student</button>
+        </form>
+    </div>
+
+    <!-- SEARCH -->
+    <br>
+    <input type="text" id="searchInput" placeholder="Search...">
+
+    <!-- TABLE -->
+    <div class="card">
+        <table id="studentTable">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Roll</th>
+                <th>Photo</th>
+                <th>Action</th>
+            </tr>
+
+            {% for student in students %}
+            <tr>
+                <td>{{ student[0] }}</td>
+                <td>{{ student[1] }}</td>
+                <td>{{ student[2] }}</td>
+
+                <td>
+                    {% if student[3] %}
+                        <img src="/uploads/{{ student[3] }}" width="50">
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a href="/edit/{{ student[0] }}">
+                        <button class="edit">Edit</button>
+                    </a>
+
+                    <a href="/delete/{{ student[0] }}">
+                        <button class="delete">Delete</button>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <br>
+    <a href="/logout">
+        <button class="logout">Logout</button>
+    </a>
+
+</div>
+
+<!-- SEARCH SCRIPT -->
+<script>
+    const searchInput = document.getElementById("searchInput");
+
+    searchInput.addEventListener("keyup", function() {
+        let filter = searchInput.value.toLowerCase();
+        let rows = document.querySelectorAll("#studentTable tr");
+
+        rows.forEach((row, index) => {
+            if (index === 0) return;
+
+            let text = row.innerText.toLowerCase();
+
+            if (text.includes(filter)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
